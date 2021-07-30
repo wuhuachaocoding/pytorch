@@ -1,6 +1,7 @@
 import torch
 from torch.autograd import Function
 import torch.distributed as dist
+import torch.distributed.ops as ops
 
 
 def broadcast(tensor, src, group=dist.group.WORLD):
@@ -129,7 +130,16 @@ def all_reduce(tensor, op=dist.ReduceOp.SUM, group=dist.group.WORLD):
         Tensor: Output of the collective
 
     """
-    return _AllReduce.apply(op, group, tensor)
+    if op == dist.ReduceOp.SUM:
+        return ops.sum(tensor, group)
+    if op == dist.ReduceOp.PRODUCT:
+        return ops.mul(tensor, group)
+    if op == dist.ReduceOp.MIN:
+        return ops.min(tensor, group)
+    if op == dist.ReduceOp.MAX:
+        return ops.max(tensor, group)
+
+    raise ValueError("Only SUM, PRODUCT, MIN, and MAX operations are supported".)
 
 
 class _Broadcast(Function):
@@ -247,17 +257,3 @@ class _AlltoAll(Function):
     @staticmethod
     def backward(ctx, *grad_outputs):
         return (None,) + _AlltoAll.apply(ctx.group, *grad_outputs)
-
-
-class _AllReduce(Function):
-    @staticmethod
-    def forward(ctx, op, group, tensor):
-        ctx.group = group
-        ctx.op = op
-        tensor = tensor.clone()
-        dist.all_reduce(tensor, op=op, group=group)
-        return tensor
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        return (None, None) + (_AllReduce.apply(ctx.op, ctx.group, grad_output),)
