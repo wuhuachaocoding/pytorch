@@ -629,7 +629,7 @@ const std::vector<std::string> functions = {
 
             return torch.index(self, indices), backward
 
-        def meshgrid(tensors: List[Tensor]):
+        def meshgrid(tensors: List[Tensor], indexing: Optional[str] = None):
             size = len(tensors)
             sizes = [0] * size
             for i in range(size):
