@@ -1102,6 +1102,37 @@ class TestFusedObsFakeQuantModule(TestCase):
         self.assertEqual(obs.quant_min, 0)
         self.assertEqual(obs.quant_max, 127)
 
+    def test_default_fused_qat_config(self):
+        class Model(nn.Module):
+            def __init__(self):
+                super(Model, self).__init__()
+                self.linear = nn.Linear(2, 2)
+                self.relu = nn.ReLU()
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = self.relu(x)
+                return x
+
+        model = Model()
+        model.linear.weight = torch.nn.Parameter(torch.randn(2, 2))
+        sample_input = torch.randn(2, 2)
+        model.qconfig = torch.quantization.default_qat_qconfig_v2
+        ref_model = torch.quantization.QuantWrapper(model)
+        ref_model = torch.quantization.prepare_qat(ref_model)
+        ref_model(sample_input)
+        count_fake_quant = 0
+        for name, mod in ref_model.named_modules():
+            if name.endswith('weight_fake_quant'):
+                count_fake_quant += 1
+                self.assertEqual(type(mod), FusedMovingAvgObsFakeQuantize)
+
+            if name.count('activation_post_process') == 1 and 'weight_fake_quant' not in name:
+                count_fake_quant += 1
+                self.assertEqual(type(mod), FusedMovingAvgObsFakeQuantize)
+
+        self.assertEqual(count_fake_quant, 3)
+
 if __name__ == '__main__':
     raise RuntimeError("This test file is not meant to be run directly, use:\n\n"
                        "\tpython test/test_quantization.py TESTNAME\n\n"

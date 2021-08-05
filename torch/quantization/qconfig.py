@@ -7,7 +7,7 @@ from .observer import (HistogramObserver, MovingAverageMinMaxObserver,
                        default_placeholder_observer, default_weight_observer)
 from .fake_quantize import (FakeQuantize, default_fake_quant,
                             default_per_channel_weight_fake_quant,
-                            default_weight_fake_quant)
+                            default_weight_fake_quant, default_fused_act_fake_quant, default_fused_wt_fake_quant)
 import torch
 import torch.nn as nn
 
@@ -92,6 +92,10 @@ default_weight_only_qconfig = QConfig(activation=torch.nn.Identity,
                                       weight=default_weight_fake_quant)
 default_activation_only_qconfig = QConfig(activation=default_fake_quant,
                                           weight=torch.nn.Identity)
+
+# QAT config that uses a fused observer + fake quant modules for optimized training performance.
+# to modify the activation/weight observers, the default entries in fake_quantize.py can be modified.
+default_qat_qconfig_v2 = QConfig(activation=default_fused_act_fake_quant, weight=default_fused_wt_fake_quant)
 
 def get_default_qconfig(backend='fbgemm'):
     if backend == 'fbgemm':
