@@ -69,7 +69,6 @@ void check_allany_for_meta(
     const Tensor& self,
     int64_t dim,
     bool keepdim) {
-  dim = maybe_wrap_dim(dim, self.dim());
   const auto& result = meta.maybe_get_output();
   auto out_dtype = check_allany_and_get_output_dtype(name, self, result, keepdim);
   auto shape = get_reduction_shape(self, dim, keepdim);
@@ -77,12 +76,26 @@ void check_allany_for_meta(
   namedinference::propagate_names_for_reduction(result, self, dim, keepdim);
 }
 
-TORCH_META_FUNC2(all, dim)(const Tensor& self, int64_t dim, bool keepdim) {
-  check_allany_for_meta(*this, "all", self, dim, keepdim);
+ TORCH_PRECOMPUTE_META_FUNC2(all, dim)
+ (const Tensor& self,
+  int64_t dim,
+  bool keepdim) {
+   dim = maybe_wrap_dim(dim, self.dim());
+   check_allany_for_meta(*this, "all", self, dim, keepdim);
+   return {
+     .dim_=dim
+   };
 }
 
-TORCH_META_FUNC2(any, dim)(const Tensor& self, int64_t dim, bool keepdim) {
+TORCH_PRECOMPUTE_META_FUNC2(any, dim)
+(const Tensor& self,
+ int64_t dim,
+ bool keepdim) {
+  dim = maybe_wrap_dim(dim, self.dim());
   check_allany_for_meta(*this, "any", self, dim, keepdim);
+  return {
+    .dim_=dim
+  };
 }
 
 void check_argmax_argmin(
@@ -1250,11 +1263,10 @@ Tensor all(const Tensor& self) {
 }
 
 TORCH_IMPL_FUNC(all_out)
-(const Tensor& self, int64_t dim, bool keepdim, const Tensor& result) {
-  dim = maybe_wrap_dim(dim, self.dim());
-  auto iter = get_allany_iter(self, result, dim, keepdim);
+(const Tensor& self, int64_t dim_, bool keepdim, const Tensor& result) {
+  auto iter = get_allany_iter(self, result, dim_, keepdim);
   auto mut_result = const_cast<Tensor&>(result);
-  if (!_dimreduce_return_trivial(mut_result, self, 1, dim, keepdim)) {
+  if (!_dimreduce_return_trivial(mut_result, self, 1, dim_, keepdim)) {
     _all(mut_result, iter);
   }
 }
@@ -1283,11 +1295,13 @@ Tensor any(const Tensor& self) {
 }
 
 TORCH_IMPL_FUNC(any_out)
-(const Tensor& self, int64_t dim, bool keepdim, const Tensor& result) {
-  dim = maybe_wrap_dim(dim, self.dim());
-  auto iter = get_allany_iter(self, result, dim, keepdim);
+(const Tensor& self,
+ int64_t dim_,
+ bool keepdim,
+ const Tensor& result) {
+  auto iter = get_allany_iter(self, result, dim_, keepdim);
   auto mut_result = const_cast<Tensor&>(result);
-  if (!_dimreduce_return_trivial(mut_result, self, 0, dim, keepdim)) {
+  if (!_dimreduce_return_trivial(mut_result, self, 0, dim_, keepdim)) {
     _any(mut_result, iter);
   }
 }

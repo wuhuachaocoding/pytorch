@@ -23,13 +23,34 @@ def gen_unstructured(f: NativeFunction, backend_index: BackendIndex) -> Optional
 def gen_structured(g: NativeFunctionsGroup, backend_index: BackendIndex) -> List[str]:
     meta_name = meta.name(g)
     out_args = structured.impl_arguments(g)
+    precompute = g.out.precomputed
     metadata = backend_index.get_kernel(g)
     if metadata is None:
         return []
     prefix = '' if backend_index.external else 'TORCH_API '
+    if precompute:
+        impl_args_replaced = []
+        used_precomputed_elements = set()
+
+        for a in out_args:
+            if a.name in precompute.replace:
+                for replacement in precompute.replace[a.name]:
+                    impl_args_replaced.append(replacement.decl())
+                    used_precomputed_elements.add(replacement)
+            else:
+                impl_args_replaced.append(a.decl())
+
+        for element in precompute.elements:
+            if element not in used_precomputed_elements:
+                impl_args_replaced.append(element.decl())
+
+        impl_args = ', '.join(impl_args_replaced)
+    else:
+        impl_args = ', '.join(a.decl() for a in out_args)
+
     return [f"""\
 struct {prefix}structured_{metadata.kernel} : public at::meta::structured_{meta_name} {{
-void impl({', '.join(a.decl() for a in out_args)});
+void impl({impl_args});
 }};
 """]
 
