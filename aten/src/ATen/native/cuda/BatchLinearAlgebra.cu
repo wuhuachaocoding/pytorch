@@ -1990,7 +1990,7 @@ AT_ERROR("triangular_solve: MAGMA library not found in "
   MAGMAQueue magma_queue(b.get_device());
 
   constexpr int64_t batch_limit = 65535;
-  // Compute as many batches of 65535 possible
+  // Compute as many batches of 65535 as possible
   // The number of "mini"-batches are floor(batch_size / batch_limit)
   // and these cover floor(batch_size / batch_limit) * batch_limit matrix solves
   int64_t mini_batches = batch_size / batch_limit;
